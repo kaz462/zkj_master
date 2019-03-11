@@ -18,7 +18,10 @@ library(maptools)
 library(maps)
 library(RColorBrewer)
 library(xtable)
-#options(mc.cores = parallel::detectCores())  
+library(parallel)
+
+cl = makeCluster(4, type = "FORK", outfile = "")
+options(mc.cores = 4)  
 
 #setwd("/home/kaz/Jan14")
 #############################################################################
@@ -33,7 +36,6 @@ x_theta <- as.matrix(cbind(rep(1,83*14),scale(xx1)))
 
 
 
-#setwd("/home/kaz/Jan14")
 #############################################################################
 #### simulation
 ## glmmTMB
@@ -67,17 +69,22 @@ params <- list("beta_z"=c(-1.98,0.57),"beta_m"=c(-8.45,0.17,-1.06),
 
 ##sim_ME.stan
 sim_data <- simulate_data(
-  file = "sim_phi.stan",
+  file = "stan/sim_phi.stan",
   data_name = "sim",
   input_data = input_data,
   param_values = params,
   vars = c("sim_theta","sim_m","sim_y","sim_phi","sim_R"),
-  nsim = 3,
-  path = "/home/kaz/Jan14/simulated/",
+  nsim = 200,
+  path = "simulated/",
   seed = 1234
 )
 
-test_data <- readRDS("/home/kaz/Jan14/simulated/sim_2.rds")
+test_data <- readRDS("simulated/sim_2.rds")
+
+
+sprintf("simulated/sim_%d.rds", 2)
+
+
 # range
 ysim <- test_data$y; range(ysim)
 # proportion
@@ -117,16 +124,39 @@ sbeta<-beta2(c(0.6,0.8))
 gamma1 <- sbeta$a
 gamma2 <- sbeta$b
 
+
+stan_i <- function(i) {
+  test_data <- readRDS(sprintf("simulated/sim_%d.rds", i))
+  ysim <- test_data$y
+  stan("stan/model_phi.stan", data=list(n=83,N=1162,y=ysim,pop_tn=pop_tn,K=3,
+                                                  x_theta=x_theta,TTime=TTime,
+                                                  x_lambda=x_lambda,W=W,W_n=W_n,
+                                                  gamma1=gamma1,gamma2=gamma2),
+                 chains=2, warmup=500, iter=800, save_warmup=FALSE,init = inits,
+                 control = list(adapt_delta = 0.95,max_treedepth = 15));
+}
+fit.all <- lapply(seq(5), stan_i)
+fit.all <- parLapply(cl = cl, X = seq(4), stan_i)
+
+
+
+
+
 ## stan model
 inits1 <- list(beta_m=rep(1,3),beta_z=rep(0,2),phi=rep(0,83),tau=0.5,alpha=0.2,a=0.1)
 inits2 <- list(beta_m=rep(-0.1,3),beta_z=rep(0.5,2),phi=rep(1,83),tau=1,alpha=0.6,a=1)
 inits <- list(inits1,inits2)
-stanfit = stan("model_phi.stan", data=list(n=83,N=1162,y=ysim,pop_tn=pop_tn,K=3,
-                                        x_theta=x_theta,TTime=TTime,x_R=x_R,
+
+
+
+stanfit = stan("stan/model_phi.stan", data=list(n=83,N=1162,y=ysim,pop_tn=pop_tn,K=3,
+                                        x_theta=x_theta,TTime=TTime,
                                         x_lambda=x_lambda,W=W,W_n=W_n,
                                         gamma1=gamma1,gamma2=gamma2),
-                chains=2, warmup=2000, iter=3000, save_warmup=FALSE,init = inits,
+                chains=2, warmup=2000, iter=6000, save_warmup=FALSE,init = inits,
                 control = list(adapt_delta = 0.95,max_treedepth = 15));
+
+
 ## output
 print(stanfit, digits=2,pars=c("beta_z","beta_m","tau","alpha","a"),
       probs=c(0.025, 0.5, 0.975)) 
@@ -134,7 +164,7 @@ trace<-traceplot(stanfit,pars=c("beta_z","beta_m","tau","alpha","a"));trace
 pairs(stanfit,pars=c("beta_z","beta_m","a"))
 #############################################################################
 
-
+stanfit.p <- summary(stanfit)
 
 print(stanfit, digits=2,pars=c("beta_z","beta_m","tau","alpha"),
       probs=c(0.025, 0.5, 0.975)) 
