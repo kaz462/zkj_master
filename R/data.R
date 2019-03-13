@@ -1,3 +1,8 @@
+#library(maps)
+#library(maptools)
+#library(sp)
+#library(glmmBUGS)
+
 #### read data
 setwd("data")
 
@@ -35,12 +40,12 @@ unemploy[, 14] <- as.vector(mi.unem04$Unemployment_rate[mi.unem04$state == 26])
 
 mi.gdl <- read.csv("mi_GDL1617.csv")
 mi.gdl.96 <- subset(mi.gdl, YEAR == 1996)
-mi.county <- map("county", "michigan", fill = T, plot = F)
-mi.IDs <- sapply(strsplit(mi.county$names, ":"), function(x)  x[1])
+mi.county <- maps::map("county", "michigan", fill = T, plot = F)
+mi.IDs <- sapply(strsplit(mi.county$names, ":"), function(x) x[1])
 
 ## Here we transform the dataset in the maps database into a SpatialPolygon object
-mi.poly.county <- map2SpatialPolygons(mi.county,IDs=mi.IDs,proj4string=CRS("+proj=longlat + datum=wgs84"))
-car.values <- addSpatial(mi.poly.county)
+mi.poly.county <- maptools::map2SpatialPolygons(mi.county,IDs=mi.IDs,proj4string=sp::CRS("+proj=longlat + datum=wgs84"))
+car.values <- glmmBUGS::addSpatial(mi.poly.county)
 adj <- car.values$adj
 num <- car.values$num
 sumNumNeigh <- sum(num)
@@ -103,6 +108,7 @@ for(i in 1:I){
 dd_rate <- as.vector(d_rate)
 
 setwd("..")
+## finish reading data here
 
 ## transfer function 
 mungeCARdata4stan <- function(adjBUGS,numBUGS) {

@@ -1,27 +1,17 @@
 #March 10, 2019
-library(RColorBrewer)
-library(maps)
-library(e1071)
-library(classInt)
-library(coda)
-#library("R2WinBUGS")
-library("sp")
-library(maptools)
-library(StanHeaders) 
-library(ggplot2) 
+#library(spdep)
+#library(raster)
+
 library(rstan) 
-library(spdep)
-library(rstan)  
-library(glmmBUGS)
-library(classInt)
-library(maptools)
-library(maps)
-library(RColorBrewer)
+library(rstansim)
+library(bayesplot)
 library(xtable)
 library(parallel)
 
-cl = makeCluster(4, type = "FORK", outfile = "")
-options(mc.cores = 4)  
+
+#cl = makeCluster(4, type = "FORK", outfile = "")
+options(mc.cores = 4)
+rstan_options(auto_write = TRUE)
 
 #setwd("/home/kaz/Jan14")
 #############################################################################
@@ -38,15 +28,18 @@ x_theta <- as.matrix(cbind(rep(1,83*14),scale(xx1)))
 
 #############################################################################
 #### simulation
-## glmmTMB
-dt <- as.data.frame(cbind(yy,scale(xx1),scale(xx2),county))
-library(glmmTMB)
-obj <- glmmTMB(yy~scale(xx1)+scale(xx2)+(1|county),zi=~scale(xx1),
-               family=poisson,data=dt,offset=log(0.55*pop_tn))
-out <- confint(obj)[,3]
+## library(glmmTMB)
+dat <- as.data.frame(cbind(yy,scale(xx1),scale(xx2),county))
+tmb.fit <-
+  glmmTMB::glmmTMB(
+    yy ~ scale(xx1) + scale(xx2) + (1 | county),
+    zi =  ~ scale(xx1),
+    family = poisson,
+    data = dat,
+    offset = log(0.55 * pop_tn)
+  )
+confint(tmb.fit)
 ##  simulate y with true x
-library(rstansim)
-library(raster)
 input_data <- list("n"=83,"N"=1162,"pop_tn"=pop_tn,"K"=3, "x_lambda"=x_lambda,
                    "TTime"=TTime,"x_theta"=x_theta,"W"=W,"W_n"=W_n)
 #params <- list("beta_z"=c(-2,0.6),"beta_m"=c(-8.5,0.06,-1),
@@ -74,23 +67,22 @@ sim_data <- simulate_data(
   input_data = input_data,
   param_values = params,
   vars = c("sim_theta","sim_m","sim_y","sim_phi","sim_R"),
-  nsim = 200,
+  nsim = 10,
   path = "simulated/",
-  seed = 1234
+  seed = 1234,
+  use_cores = detectCores() 
 )
 
 test_data <- readRDS("simulated/sim_2.rds")
 
-
-sprintf("simulated/sim_%d.rds", 2)
-
-
 # range
 ysim <- test_data$y; range(ysim)
 # proportion
-sum(ysim==0)/length(ysim);sum(yy==0)/length(yy)
+sum(ysim == 0) / length(ysim)
+sum(yy == 0) / length(yy)
 # mean of simulated y (non-zeros)
-mean(ysim[ysim!=0]);mean(yy[yy!=0])
+mean(ysim[ysim != 0])
+mean(yy[yy != 0])
 # table
 xtable(t(table(ysim)),caption='Table of ysim')
 xtable(t(table(yy)),caption='Table of yy')
@@ -107,39 +99,23 @@ hist(yy,xlab="Real counts",xlim=range(ysim),ylim=c(0,1000),breaks=seq(0,max(ysim
 #############################################################################
 #### model
 ## parameters for beta prior
-beta2 <- function(para)
-{ para[3]<-0.025;para[4]<-0.975
-sum.sqr<-function(x){
-  sum1<-(pbeta(para[1],shape1=x[1],shape2=x[2])-para[3])^2
-  sum2<-(pbeta(para[2],shape1=x[1],shape2=x[2])-para[4])^2
-  ans<-sum1+sum2}
-opt<-optim(c(1,1),sum.sqr,lower=c(0.01,0.01),method="L-BFGS-B")
-#opt<-optim(c(1,1),sum.sqr)
-out<-list(a=opt$par[1],b=opt$par[2])
-print(out)
+beta2 <- function(para) {
+  para[3] <- 0.025
+  para[4] <- 0.975
+  sum.sqr <- function(x) {
+    sum1 <- (pbeta(para[1], shape1 = x[1], shape2 = x[2]) - para[3])^2
+    sum2 <- (pbeta(para[2], shape1 = x[1], shape2 = x[2]) - para[4])^2
+    ans <- sum1 + sum2
+  }
+  opt <- optim(c(1, 1), sum.sqr, lower = c(0.01, 0.01), method = "L-BFGS-B")
+  #opt<-optim(c(1,1),sum.sqr)
+  list(a = opt$par[1], b = opt$par[2])
 }
 
 #aa<-0.6;bb<-0.8
-sbeta<-beta2(c(0.6,0.8))
+sbeta <- beta2(c(0.6,0.8)); sbeta
 gamma1 <- sbeta$a
 gamma2 <- sbeta$b
-
-
-stan_i <- function(i) {
-  test_data <- readRDS(sprintf("simulated/sim_%d.rds", i))
-  ysim <- test_data$y
-  stan("stan/model_phi.stan", data=list(n=83,N=1162,y=ysim,pop_tn=pop_tn,K=3,
-                                                  x_theta=x_theta,TTime=TTime,
-                                                  x_lambda=x_lambda,W=W,W_n=W_n,
-                                                  gamma1=gamma1,gamma2=gamma2),
-                 chains=2, warmup=500, iter=800, save_warmup=FALSE,init = inits,
-                 control = list(adapt_delta = 0.95,max_treedepth = 15));
-}
-fit.all <- lapply(seq(5), stan_i)
-fit.all <- parLapply(cl = cl, X = seq(4), stan_i)
-
-
-
 
 
 ## stan model
@@ -149,18 +125,49 @@ inits <- list(inits1,inits2)
 
 
 
-stanfit = stan("stan/model_phi.stan", data=list(n=83,N=1162,y=ysim,pop_tn=pop_tn,K=3,
-                                        x_theta=x_theta,TTime=TTime,
-                                        x_lambda=x_lambda,W=W,W_n=W_n,
-                                        gamma1=gamma1,gamma2=gamma2),
-                chains=2, warmup=2000, iter=6000, save_warmup=FALSE,init = inits,
-                control = list(adapt_delta = 0.95,max_treedepth = 15));
+stanfit <-
+  stan(
+    "stan/model_phi.stan",
+    data = list(
+      n = 83, N = 1162, y = ysim, pop_tn = pop_tn,
+      K = 3, x_theta = x_theta, TTime = TTime,
+      x_lambda = x_lambda, W = W, W_n = W_n,
+      gamma1 = gamma1, gamma2 = gamma2
+    ),
+    chains = 2, warmup = 2000, iter = 6000,
+    save_warmup = FALSE, init = inits,
+    control = list(adapt_delta = 0.95, max_treedepth = 15)
+  )
+
+
+
+stan_i <- function(i) {
+  test_data <- readRDS(sprintf("simulated/sim_%d.rds", i))
+  ysim <- test_data$y
+  stan(
+    "stan/model_phi.stan",
+    data = list(
+      n = 83, N = 1162, y = ysim, pop_tn = pop_tn,
+      K = 3, x_theta = x_theta, TTime = TTime,
+      x_lambda = x_lambda, W = W, W_n = W_n,
+      gamma1 = gamma1, gamma2 = gamma2
+    ),
+    chains = 2, warmup = 1000, iter = 2000,
+    save_warmup = FALSE, init = inits,
+    control = list(adapt_delta = 0.95, max_treedepth = 15)
+  )
+}
+#fit.all <- lapply(seq(200), stan_i)
+#fit.all <- parLapply(cl = cl, X = seq(4), stan_i)
+#system.time(
+  #fit.all <- lapply(seq(3), stan_i)
+#)
 
 
 ## output
 print(stanfit, digits=2,pars=c("beta_z","beta_m","tau","alpha","a"),
       probs=c(0.025, 0.5, 0.975)) 
-trace<-traceplot(stanfit,pars=c("beta_z","beta_m","tau","alpha","a"));trace
+trace <- traceplot(stanfit,pars=c("beta_z","beta_m","tau","alpha","a"));trace
 pairs(stanfit,pars=c("beta_z","beta_m","a"))
 #############################################################################
 
@@ -168,7 +175,7 @@ stanfit.p <- summary(stanfit)
 
 print(stanfit, digits=2,pars=c("beta_z","beta_m","tau","alpha"),
       probs=c(0.025, 0.5, 0.975)) 
-trace<-traceplot(stanfit,pars=c("beta_z","beta_m","tau","alpha"))
+trace <- traceplot(stanfit,pars=c("beta_z","beta_m","tau","alpha"))
 pairs(stanfit,pars=c("beta_z","beta_m"))
 
 parse_exp <- function(s) {
