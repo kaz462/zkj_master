@@ -130,7 +130,7 @@ for (i in 1L:200) {
   
   stanfit <-
     stan(
-      "stan/model_phi.stan",
+      "stan/model.stan",
       data = list(
         n = 83, N = 1162, y = ysim, pop_tn = pop_tn,
         K = 3, x_theta = x_theta, TTime = TTime,
@@ -142,6 +142,7 @@ for (i in 1L:200) {
       control = list(adapt_delta = 0.95, max_treedepth = 15)
     )
   saveRDS(stanfit, file = sprintf("out/stanfit_%d.rds", i))
+  gc(verbose = F)
 }
 
 ## output
@@ -150,3 +151,8 @@ for (i in 1L:200) {
 # trace <- traceplot(stanfit,pars=c("beta_z","beta_m","tau","alpha","a"));trace
 # pairs(stanfit,pars=c("beta_z","beta_m","a"))
 #############################################################################
+#fit1 <- readRDS("out/stanfit_1.rds"); fit_1 <- extract(fit1)
+#fit_1$beta_m
+#apply(fit_1$beta_m, 2, mean); apply(fit_1$beta_z, 2, mean);
+
+

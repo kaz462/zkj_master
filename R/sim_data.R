@@ -32,7 +32,7 @@ params <- list(
 
 ##sim_ME.stan
 sim_data <- simulate_data(
-  file = "stan/sim_phi.stan",
+  file = "stan/sim.stan",
   data_name = "sim",
   input_data = input_data,
   param_values = params,

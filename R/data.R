@@ -158,4 +158,10 @@ TTime <- c(rep(1,7*83),rep(0,7*83))
 TTime1 <- c(TT1[1:(1162/2)],TT2[(1162/2+1):1162])
 x_lambda <- as.matrix(cbind(rep(1,83*14),scale(xx1),scale(xx2)))
 x_theta <- as.matrix(cbind(rep(1,83*14),scale(xx1)))
-pop_tn <- mi.gdl$pop_tn[mi.gdl$YEAR!=1997 & mi.gdl$YEAR!=2005 & mi.gdl$YEAR!=2006 & mi.gdl$YEAR!=2007 & mi.gdl$YEAR!=2008 & mi.gdl$YEAR!=2009]
+pop_tn <-
+  mi.gdl$pop_tn[mi.gdl$YEAR != 1997 &
+                  mi.gdl$YEAR != 2005 &
+                  mi.gdl$YEAR != 2006 &
+                  mi.gdl$YEAR != 2007 & mi.gdl$YEAR != 2008 & mi.gdl$YEAR != 2009]
+
+save(xx1, xx2, yy, pop_tn, x_lambda, TTime, x_theta, W, W_n, file = "data/collec.RData")
