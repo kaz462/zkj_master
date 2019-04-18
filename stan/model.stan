@@ -100,8 +100,11 @@ model{
   vector[N] m1_log;   
   vector[N] m;  
   vector[N] R; 
+  
   theta = inv_logit(x_theta * beta_z);
-  R = Phi(TTime*a);
+  //theta = Phi_approx(x_theta * beta_z);
+  //R = Phi(TTime*a);//Phi_approx
+  R = inv_logit(TTime*a);
   m1_log = x_lambda * beta_m +  to_vector(rep_matrix(phi, 14)); 
   m=exp(m1_log+log(R)+log(pop_tn));
   

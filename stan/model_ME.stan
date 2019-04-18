@@ -40,7 +40,7 @@ data {
   int<lower=1> N;
   int y[N];
   vector[N] pop_tn;
-  vector[N] TTime;
+  //vector[N] TTime;
   int<lower=1> K; //number of predictors for poisson part
   matrix[N, 3] x_lambda; 
   matrix[N, 2] x_theta; 
@@ -99,11 +99,12 @@ model{
   vector[N] theta;
   vector[N] m1_log;   
   vector[N] m;  
- // vector[N] R; 
+  //vector[N] R; 
   theta = inv_logit(x_theta * beta_z);
-  //R = Phi(TTime*a+  to_vector(rep_matrix(phi, 14)));
-  m1_log = x_lambda * beta_m; 
-  m=exp(m1_log+log(pop_tn));//+log(R)
+  //theta = Phi_approx(x_theta * beta_z);
+  //R = Phi(TTime*a);
+  m1_log = x_lambda * beta_m +  to_vector(rep_matrix(phi, 14)); 
+  m=exp(m1_log+log(pop_tn));
   
     for (i in 1:N) { 
         if (y[i] == 0)
@@ -119,6 +120,6 @@ model{
   phi ~ sparse_car(tau, alpha, W_sparse, D_sparse, lambda, n, W_n);
   beta_m ~ multi_normal(rep_vector(0, 3),diag_matrix(rep_vector(100, 3)));
   beta_z ~ multi_normal(rep_vector(0, 2),diag_matrix(rep_vector(100, 2)));
- // a ~ normal(0,100);
+  //a ~ normal(0,100);
 }
 

@@ -9,7 +9,7 @@ library(xtable)
 library(parallel)
 
 #cl = makeCluster(4, type = "FORK", outfile = "")
-options(mc.cores = 4)
+#options(mc.cores = 4)
 rstan_options(auto_write = TRUE)
 
 
@@ -96,7 +96,9 @@ beta2 <- function(para) {
 }
 
 #aa<-0.6;bb<-0.8
-sbeta <- beta2(c(0.6,0.8))
+#sbeta <- beta2(c(0.08,0.12))
+#sbeta <- beta2(c(0.6,0.8))
+sbeta <- beta2(c(0.7,0.9))
 #sbeta
 gamma1 <- sbeta$a
 gamma2 <- sbeta$b
@@ -123,11 +125,11 @@ inits2 <-
   )
 inits <- list(inits1,inits2)
 
+system ("if [ ! -d out_a8_alpha1 ]; then mkdir out_a8_alpha1; fi") 
+
 for (i in 1L:200) {
-  
-  test_data <- readRDS(sprintf("simulated/sim_%d.rds", i))
+  test_data <- readRDS(sprintf("simulated_a8_alpha1/sim_%d.rds", i))
   ysim <- test_data$y
-  
   stanfit <-
     stan(
       "stan/model.stan",
@@ -137,22 +139,28 @@ for (i in 1L:200) {
         x_lambda = x_lambda, W = W, W_n = W_n,
         gamma1 = gamma1, gamma2 = gamma2
       ),
-      chains = 2, warmup = 3000, iter = 6000,
+      chains = 2, warmup = 1000, iter = 2000,
       save_warmup = FALSE, init = inits,
       control = list(adapt_delta = 0.95, max_treedepth = 15)
     )
-  saveRDS(stanfit, file = sprintf("out/stanfit_%d.rds", i))
+  
+  saveRDS(stanfit, file = sprintf("out_a8_alpha1/stanfit_%d.rds", i))
   gc(verbose = F)
 }
 
 ## output
-# print(stanfit, digits=2,pars=c("beta_z","beta_m","tau","alpha","a"),
+#print(stanfit_ME, digits=2,pars=c("beta_z","beta_m","tau","alpha"),
 #       probs=c(0.025, 0.5, 0.975)) 
-# trace <- traceplot(stanfit,pars=c("beta_z","beta_m","tau","alpha","a"));trace
-# pairs(stanfit,pars=c("beta_z","beta_m","a"))
+#print(stanfit, digits=2,pars=c("beta_z","beta_m","tau","alpha","a"),
+#      probs=c(0.025, 0.5, 0.975)) 
+#trace <- traceplot(stanfit,pars=c("beta_z","beta_m","tau","alpha","a"));trace
+#pairs(stanfit_ME,pars=c("beta_z","beta_m"));
+#pairs(stanfit,pars=c("beta_z","beta_m","a"))
 #############################################################################
-#fit1 <- readRDS("out/stanfit_1.rds"); fit_1 <- extract(fit1)
-#fit_1$beta_m
-#apply(fit_1$beta_m, 2, mean); apply(fit_1$beta_z, 2, mean);
-
-
+#fit_all <- lapply(1:144, function(i) {extract(readRDS(sprintf("out/stanfit_%d.rds", i)))})
+#fit_sample <- lapply(fit_all, function(x) {list(beta_z1=x$beta_z[,1], beta_z2=x$beta_z[,2], 
+#                                                beta_m1=x$beta_m[,1], beta_m2=x$beta_m[,2], 
+#                                                beta_m3=x$beta_m[,3], a=x$a, alpha=x$alpha, 
+#                                                tau=x$tau)})
+#est <- sapply(fit_sample, function(x) {as.vector(sapply(x, mean))})
+#apply(t(est), 2, mean)
