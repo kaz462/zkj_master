@@ -16,7 +16,7 @@ rstan_options(auto_write = TRUE)
 #############################################################################
 #### read data 
 ## uncomment the following when running in terminal
-setwd("..")
+## setwd("..")
 
 #source("R/data.R")
 load("data/collec.RData")

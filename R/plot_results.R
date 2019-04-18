@@ -1,8 +1,9 @@
 library(rstan)
 library(cowplot)
 
-##############################################################################results
-results <- function(file){
+###########################################################Function###########################################################
+## results ME model
+results_ME <- function(file){
   fit_all <- lapply(1:200, function(i) {extract(readRDS(sprintf("%s/stanfit_%d.rds", file, i)))})
   fit_sample <- lapply(fit_all, function(x) {list(beta_z1=x$beta_z[,1], beta_z2=x$beta_z[,2], 
                                                   beta_m1=x$beta_m[,1], beta_m2=x$beta_m[,2], 
@@ -14,9 +15,9 @@ results <- function(file){
   colnames(est) <- "Estimation"
   est
 }
-##AB, MSE
 
-results_ME <- function(file){
+## results Naive model
+results_Naive <- function(file){
   fit_all <- lapply(1:200, function(i) {extract(readRDS(sprintf("%s/stanfit_%d.rds", file, i)))})
   fit_sample <- lapply(fit_all, function(x) {list(beta_z1=x$beta_z[,1], beta_z2=x$beta_z[,2], 
                                                   beta_m1=x$beta_m[,1], beta_m2=x$beta_m[,2], 
@@ -29,8 +30,33 @@ results_ME <- function(file){
   est
 }
 
-#a_5_alpha7 <- results(file="out_a-5_alpha7");
-#a_5_alpha7_ME <- results_ME(file="out_a-5_alpha7_ME");
+## bias plot 
+plot_bias <- function(Difference, alpha, a){
+  model <-c(rep("ME Model", 7), rep("Naive Model", 7))
+  Parameters <- rep(c("a", "b", "c", "d", "e", "f", "g"), 2)
+  mydata <- data.frame(Parameters, Difference, model)
+  p <-ggplot(mydata, aes(Parameters, Difference, fill=model))
+  p +geom_bar(stat = "identity", position = "dodge") +
+    scale_fill_brewer(palette="Paired") +
+    theme_bw()+ scale_x_discrete(labels = c(expression(beta[z1]),
+                                            expression(beta[z2]),
+                                            expression(beta[m1]),
+                                            expression(beta[m2]),
+                                            expression(beta[m3]),
+                                            expression(alpha),
+                                            expression(tau))) +
+    ylim(0,0.6) + ylab("Relative Bias (in absolute value)") +  
+    xlab("") + ggtitle(bquote(list(a==.(a), alpha==.(alpha)))) +
+    theme(legend.position = "none")+
+    theme(plot.title = element_text(hjust = 0.5))
+}
+#############################################################################################################################
+
+
+
+
+
+###########################################################Results###########################################################
 a0_alpha7 <- results(file="out_a0_alpha7")
 a0_alpha7_ME <- results_ME(file="out_a0_alpha7_ME")
 a2_alpha7 <- results(file="out_a2_alpha7")
@@ -52,36 +78,7 @@ a2_alpha1_ME <- results_ME(file="out_a2_alpha1_ME")
 a5_alpha1 <- results(file="out_a5_alpha1")
 a5_alpha1_ME <- results_ME(file="out_a5_alpha1_ME")
 
-a7_alpha5 <- results(file="out_a7_alpha5")
-a7_alpha5_ME <- results_ME(file="out_a7_alpha5_ME")
-a1_alpha5 <- results(file="out_a1_alpha5")
-a1_alpha5_ME <- results_ME(file="out_a1_alpha5_ME")
-a_5_alpha5 <- results(file="out_a_5_alpha5")
-a_5_alpha5_ME <- results_ME(file="out_a_5_alpha5_ME")
-##############################################################################bias plot 
-plot_bias <- function(Difference, alpha, a){
-  model <-c(rep("ME Model", 7), rep("Naive Model", 7))
-  Parameters <- rep(c("a", "b", "c", "d", "e", "f", "g"), 2)
-  mydata <- data.frame(Parameters, Difference, model)
-  
-  p <-ggplot(mydata, aes(Parameters, Difference, fill=model))
-  p +geom_bar(stat = "identity", position = "dodge") +
-    scale_fill_brewer(palette="Paired") +
-    theme_bw()+ scale_x_discrete(labels = c(expression(beta[z1]),
-                                            expression(beta[z2]),
-                                            expression(beta[m1]),
-                                            expression(beta[m2]),
-                                            expression(beta[m3]),
-                                            expression(alpha),
-                                            expression(tau))) +
-    ylim(0,0.6) + ylab("Relative Bias (in absolute value)") +  
-    xlab("") + ggtitle(bquote(list(a==.(a), alpha==.(alpha)))) +
-    theme(legend.position = "none")+
-    theme(plot.title = element_text(hjust = 0.5))
-}
-
 true <- c(-1.98, 0.57, -8.44, 0.17, -1.06, 0.5, 0.25)
-#Difference_5 <- abs(c(true-t(as.vector(a_5_alpha7))[-6], true-t(as.vector(a_5_alpha7_ME))[1:7]))
 Difference0_7 <- abs(c((true-t(as.vector(a0_alpha7))[-6])/true, (true-t(as.vector(a0_alpha7_ME))[1:7])/true))
 Difference2_7 <- abs(c((true-t(as.vector(a2_alpha7))[-6])/true, (true-t(as.vector(a2_alpha7_ME))[1:7])/true))
 Difference5_7 <- abs(c((true-t(as.vector(a5_alpha7))[-6])/true, (true-t(as.vector(a5_alpha7_ME))[1:7])/true))
@@ -111,80 +108,10 @@ bias0_1 <- plot_bias(Difference0_1, alpha = 0.1, a=0)
 bias2_1 <- plot_bias(Difference2_1, alpha = 0.1, a=0.2)
 bias5_1 <- plot_bias(Difference5_1, alpha = 0.1, a=0.5)
 
-bias7_5 <- plot_bias(Difference7_5, alpha = 0.5, a=0.7)
-bias1_5 <- plot_bias(Difference1_5, alpha = 0.5, a=0.1)
-bias_5_5 <- plot_bias(Difference_5_5, alpha = 0.5, a=-0.5)
-plot_grid(bias7_5, bias1_5, bias_5_5, 
-          get_legend(bias2_1 + theme(legend.position=c(2.7, 0.85))),
-          ncol = 3)
 
 plot_grid(bias0_7, bias2_7, bias5_7, 
           bias0_4, bias2_4, bias5_4, 
           bias0_1, bias2_1, bias5_1, 
           get_legend(bias2_1 + theme(legend.position=c(2.7, 0.85))),
           ncol = 3)
-
-
-
-
-#################################
-##########################################plot ME
-true <- c(-1.98, 0.57, -8.44, 0.17, -1.06, 0.7, 0.75)
-plot(abs(true-t(as.vector(a0_alpha7_ME))[1:7]), type="o", col="purple", 
-     xlab="Parameters", ylab="Difference of true and estimated values", 
-     axes = F, ylim=c(0,1)) #, axes=FALSE,ann=FALSE
-lines(abs(true-as.vector(a2_alpha7_ME)), type="o", pch=24, lty=5, col="red")
-lines(abs(true-as.vector(a5_alpha7_ME)), type="o", pch=22, lty=2, col="black")
-axis(1, at=1:7, lab=c("beta_z1", "beta_z2", "beta_m1", "beta_m2", "beta_m3", "alpha", "tau"))
-axis(2)
-box()
-abline(h=0)
-
-
-##########################################plot 
-true <- c(-1.98, 0.57, -8.44, 0.17, -1.06, 0.7, 0.75)
-plot(abs(true-t(as.vector(a0_alpha7))[1:7]), type="o", col="purple", 
-     xlab="Parameters", ylab="Difference of true and estimated values", 
-     axes = F, ylim=c(0,1)) #, axes=FALSE,ann=FALSE
-lines(abs(true-as.vector(a2_alpha7)[1:7]), type="o", pch=24, lty=5, col="red")
-lines(abs(true-as.vector(a5_alpha7)[1:7]), type="o", pch=22, lty=2, col="black")
-axis(1, at=1:7, lab=c("beta_z1", "beta_z2", "beta_m1", "beta_m2", "beta_m3", "alpha", "tau"))
-axis(2)
-box()
-abline(h=0)
-
-
-plot(true-t(as.vector(a2_alpha7))[-6], type="o", col="purple", ylim=c(-0.1,0.65)) #, axes=FALSE,ann=FALSE
-lines(true-t(as.vector(a5_alpha7))[-6], type="o", pch=24, lty=5, col="red")
-lines(true-t(as.vector(a8_alpha7))[-6], type="o", pch=22, lty=2, col="black")
-axis(1, at=1:7, lab=c("beta_z1", "beta_z2", "beta_m1", "beta_m2", "beta_m3", "alpha", "tau"))
-axis(2)
-box()
-abline(h=0)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#################################
-##########################################plot ME
-plot(abs(true-t(as.vector(a0_alpha7_ME))[1:7]), type="o", col="purple", 
-     xlab="Parameters", ylab="Difference of true and estimated values", 
-     axes = F, ylim=c(0,1)) #, axes=FALSE,ann=FALSE
-lines(abs(true-as.vector(a2_alpha7_ME)), type="o", pch=24, lty=5, col="red")
-lines(abs(true-as.vector(a5_alpha7_ME)), type="o", pch=22, lty=2, col="black")
-axis(1, at=1:7, lab=c("beta_z1", "beta_z2", "beta_m1", "beta_m2", "beta_m3", "alpha", "tau"))
-axis(2)
-box()
-abline(h=0)
-
-
+######################################################################################################################

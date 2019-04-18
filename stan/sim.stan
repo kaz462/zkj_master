@@ -44,15 +44,11 @@ generated quantities {
   
   sim_phi=multi_normal_rng(zeros,Sigma);
   sim_theta = inv_logit(x_theta * beta_z);
-  //sim_theta = Phi_approx(x_theta * beta_z);
   //sim_R = Phi(TTime*a); 
-  
   sim_R = inv_logit(TTime*a);
   sim_m = exp(x_lambda * beta_m + to_vector(rep_matrix(sim_phi, 14))+log(sim_R)+log(pop_tn));
-  //sim_log_R = log_inv_logit(TTime*a);
-  //sim_m = exp(x_lambda * beta_m + to_vector(rep_matrix(sim_phi, 14))+sim_log_R+log(pop_tn));
   
-for (i in 1:N) { 
+  for (i in 1:N) { 
         if (binomial_rng(1,sim_theta[i])>0)
           sim_y[i] = 0;
         else

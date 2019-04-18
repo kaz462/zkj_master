@@ -1,21 +1,6 @@
 library(rstan)
 library(cowplot)
-#######normal
-file="out_a5_alpha7"
-fit <- lapply(1:200, function(i) {extract(readRDS(sprintf("%s/stanfit_%d.rds", file, i)))})
-file="out_a5_alpha7_ME"
-fit_ME <- lapply(1:200, function(i) {extract(readRDS(sprintf("%s/stanfit_%d.rds", file, i)))})
-
-beta_z2 <- sapply(fit, function(x) {mean(x$beta_z[,2])})
-beta_z2_ME <- sapply(fit_ME, function(x) {mean(x$beta_z[,2])})
-
-beta_m2 <- sapply(fit, function(x) {mean(x$beta_m[,2])})
-beta_m2_ME <- sapply(fit_ME, function(x) {mean(x$beta_m[,2])})
-
-
-
-
-####################################################### 
+## read in results "stanfit" and "stanfit_ME" from real data analysis
   post <- extract(stanfit)
   post_ME <- extract(stanfit_ME)
   beta_z1 <- post$beta_z[,1]
@@ -29,6 +14,8 @@ beta_m2_ME <- sapply(fit_ME, function(x) {mean(x$beta_m[,2])})
   beta_m1_ME <- post_ME$beta_m[,1]
   beta_m2_ME <- post_ME$beta_m[,2]
   beta_m3_ME <- post_ME$beta_m[,3]  
+  
+## plot posterior distributions with and without adjustment of ME
 ####################################################### m1
   ME_model <- data.frame(beta_m1=beta_m1)
   Naive_model <- data.frame(beta_m1=beta_m1_ME)
@@ -109,11 +96,10 @@ beta_m2_ME <- sapply(fit_ME, function(x) {mean(x$beta_m[,2])})
     xlab(expression(beta[z2])) +
     theme_bw() +
     theme(legend.position = "none")    
-    
+
+## arrange plots
   plot_grid(m1, m2, m3,
             z1, z2,
             get_legend(m1 + theme(legend.position=c(0.6, 0.5))),
             ncol = 3)
-
-
 
